@@ -485,6 +485,18 @@
             }
             return geometry;
         }
+        toBufferGeometry() {
+            const geometry = new three.BufferGeometry();
+            const triangles = this.getTriangles();
+            const coords = [];
+            for (let i = 0; i < triangles.length; i++) {
+                const triangle = triangles[i];
+                coords.push(triangle.a.x, triangle.a.y, triangle.a.z, triangle.b.x, triangle.b.y, triangle.b.z, triangle.c.x, triangle.c.y, triangle.c.z);
+            }
+            // @types/three does not have setAttribute, so...
+            geometry.setAttribute('position', new three.Float32BufferAttribute(coords, 3, false));
+            return geometry;
+        }
     }
 
     function isBufferGeometry(geometry) {
