@@ -15,6 +15,7 @@ const MINIMUM_RELATION_SCALE = 10; // should always be >2
  * Samuel Ranta-Eskola, 2001
  */
 function chooseDividingTriangle(triangles: Triangle[]): Triangle | undefined {
+return triangles[0];/*
   if (isConvexSet(triangles)) return triangles[0];
 
   let minimumRelation = MINIMUM_RELATION;
@@ -71,6 +72,7 @@ function chooseDividingTriangle(triangles: Triangle[]): Triangle | undefined {
   }
 
   return bestTriangle;
+*/
 }
 
 export default class BSPNode {
