@@ -9,22 +9,38 @@
     const CLASSIFY_FRONT = 1;
     const CLASSIFY_BACK = 2;
     const CLASSIFY_SPANNING = 3;
+    const tempVector3 = new three.Vector3();
     class Triangle {
         constructor(a, b, c) {
             if (a === undefined || b === undefined || c === undefined) {
-                this.a = new three.Vector3();
-                this.b = new three.Vector3();
-                this.c = new three.Vector3();
+                console.warn('Triangle constructor called w/o arguments');
+                this.a = [0, 0, 0];
+                this.b = [0, 0, 0];
+                this.c = [0, 0, 0];
                 this.normal = new three.Vector3();
                 this.w = 0;
                 return;
             }
-            this.a = a.clone();
-            this.b = b.clone();
-            this.c = c.clone();
+            this.a = a.slice();
+            this.b = b.slice();
+            this.c = c.slice();
             this.normal = new three.Vector3();
             this.w = 0;
             this.computeNormal();
+        }
+        applyMatrix4(matrix) {
+            tempVector3.set(this.a[0], this.a[1], this.a[2]).applyMatrix4(matrix);
+            this.a[0] = tempVector3.x;
+            this.a[1] = tempVector3.y;
+            this.a[2] = tempVector3.z;
+            tempVector3.set(this.b[0], this.b[1], this.b[2]).applyMatrix4(matrix);
+            this.b[0] = tempVector3.x;
+            this.b[1] = tempVector3.y;
+            this.b[2] = tempVector3.z;
+            tempVector3.set(this.c[0], this.c[1], this.c[2]).applyMatrix4(matrix);
+            this.c[0] = tempVector3.x;
+            this.c[1] = tempVector3.y;
+            this.c[2] = tempVector3.z;
         }
         toArrayBuffer() {
             const arr = this.toNumberArray();
@@ -32,9 +48,9 @@
         }
         toNumberArray() {
             const arr = [
-                this.a.x, this.a.y, this.a.z,
-                this.b.x, this.b.y, this.b.z,
-                this.c.x, this.c.y, this.c.z,
+                this.a[0], this.a[1], this.a[2],
+                this.b[0], this.b[1], this.b[2],
+                this.c[0], this.c[1], this.c[2],
                 this.normal.x, this.normal.y, this.normal.z,
                 this.w,
             ];
@@ -43,9 +59,9 @@
         fromNumberArray(arr) {
             if (arr.length !== 13)
                 throw new Error(`Array has incorrect size. It's ${arr.length} and should be 13`);
-            this.a.set(arr[0], arr[1], arr[2]);
-            this.b.set(arr[3], arr[4], arr[5]);
-            this.c.set(arr[6], arr[7], arr[8]);
+            this.a = [arr[0], arr[1], arr[2]];
+            this.b = [arr[3], arr[4], arr[5]];
+            this.c = [arr[6], arr[7], arr[8]];
             this.normal.set(arr[9], arr[10], arr[11]);
             this.w = arr[12];
         }
@@ -54,17 +70,15 @@
             this.fromNumberArray(Array.from(arr));
         }
         computeNormal() {
-            const tempVector3 = new three.Vector3();
-            tempVector3.copy(this.c).sub(this.a);
+            tempVector3.set(this.c[0] - this.a[0], this.c[1] - this.a[1], this.c[2] - this.a[2]);
             this.normal
-                .copy(this.b)
-                .sub(this.a)
+                .set(this.b[0] - this.a[0], this.b[1] - this.a[1], this.b[2] - this.a[2])
                 .cross(tempVector3)
                 .normalize();
-            this.w = this.normal.dot(this.a);
+            this.w = this.normal.x * this.a[0] + this.normal.y * this.a[1] + this.normal.z * this.a[2];
         }
         classifyPoint(point) {
-            const side = this.normal.dot(point) - this.w;
+            const side = this.normal.x * point[0] + this.normal.y * point[1] + this.normal.z * point[2] - this.w;
             if (Math.abs(side) < EPSILON)
                 return CLASSIFY_COPLANAR;
             if (side > 0)
@@ -82,6 +96,17 @@
             const { a, c } = this;
             this.a = c;
             this.c = a;
+            if (this.a.length > 3) {
+                this.a[3] *= -1;
+                this.a[4] *= -1;
+                this.a[5] *= -1;
+                this.b[3] *= -1;
+                this.b[4] *= -1;
+                this.b[5] *= -1;
+                this.c[3] *= -1;
+                this.c[4] *= -1;
+                this.c[5] *= -1;
+            }
             this.normal.multiplyScalar(-1);
             this.w *= -1;
         }
@@ -164,7 +189,11 @@
             }
         }
         static interpolateVectors(a, b, t) {
-            return a.clone().lerp(b, t);
+            const c = new Array(a.length);
+            for (let i = 0; i < a.length; i++) {
+                c[i] = a[i] + (b[i] - a[i]) * t;
+            }
+            return c;
         }
         static splitTriangle(triangle, divider, frontTriangles, backTriangles) {
             const vertices = [triangle.a, triangle.b, triangle.c];
@@ -181,8 +210,9 @@
                 if (ti != CLASSIFY_FRONT)
                     backVertices.push(vi);
                 if ((ti | tj) === CLASSIFY_SPANNING) {
-                    const t = (divider.w - divider.normal.dot(vi)) /
-                        divider.normal.dot(vj.clone().sub(vi));
+                    const n = divider.normal;
+                    const t = (divider.w - (n.x * vi[0] + n.y * vi[1] + n.z * vi[2])) /
+                        (n.x * (vj[0] - vi[0]) + n.y * (vj[1] - vi[1]) + n.z * (vj[2] - vi[2]));
                     const v = BSPNode.interpolateVectors(vi, vj, t);
                     frontVertices.push(v);
                     backVertices.push(v);
@@ -331,8 +361,8 @@
             const backTriangles = [];
             for (let i = 0; i < triangles.length; i++) {
                 const triangle = triangles[i];
-                this.boundingBox.min.set(Math.min(this.boundingBox.min.x, triangle.a.x, triangle.b.x, triangle.c.x), Math.min(this.boundingBox.min.y, triangle.a.y, triangle.b.y, triangle.c.y), Math.min(this.boundingBox.min.z, triangle.a.z, triangle.b.z, triangle.c.z));
-                this.boundingBox.max.set(Math.max(this.boundingBox.max.x, triangle.a.x, triangle.b.x, triangle.c.x), Math.max(this.boundingBox.max.y, triangle.a.y, triangle.b.y, triangle.c.y), Math.max(this.boundingBox.max.z, triangle.a.z, triangle.b.z, triangle.c.z));
+                this.boundingBox.min.set(Math.min(this.boundingBox.min.x, triangle.a[0], triangle.b[0], triangle.c[0]), Math.min(this.boundingBox.min.y, triangle.a[1], triangle.b[1], triangle.c[1]), Math.min(this.boundingBox.min.z, triangle.a[2], triangle.b[2], triangle.c[2]));
+                this.boundingBox.max.set(Math.max(this.boundingBox.max.x, triangle.a[0], triangle.b[0], triangle.c[0]), Math.max(this.boundingBox.max.y, triangle.a[1], triangle.b[1], triangle.c[1]), Math.max(this.boundingBox.max.z, triangle.a[2], triangle.b[2], triangle.c[2]));
                 const side = this.divider.classifySide(triangle);
                 if (side === CLASSIFY_COPLANAR) {
                     this.triangles.push(triangle);
@@ -450,9 +480,7 @@
             if (this.divider !== undefined) {
                 clone.divider = this.divider.clone();
                 if (transform) {
-                    clone.divider.a.applyMatrix4(transform);
-                    clone.divider.b.applyMatrix4(transform);
-                    clone.divider.c.applyMatrix4(transform);
+                    clone.divider.applyMatrix4(transform);
                 }
             }
             if (this.front !== undefined)
@@ -463,9 +491,7 @@
             for (let i = 0; i < this.triangles.length; i++) {
                 const clonedTriangle = this.triangles[i].clone();
                 if (transform) {
-                    clonedTriangle.a.applyMatrix4(transform);
-                    clonedTriangle.b.applyMatrix4(transform);
-                    clonedTriangle.c.applyMatrix4(transform);
+                    clonedTriangle.applyMatrix4(transform);
                     clonedTriangle.computeNormal();
                 }
                 clonedTriangles.push(clonedTriangle);
@@ -479,22 +505,46 @@
             for (let i = 0; i < triangles.length; i++) {
                 const triangle = triangles[i];
                 const vertexIndex = geometry.vertices.length;
-                geometry.vertices.push(triangle.a, triangle.b, triangle.c);
-                const face = new three.Face3(vertexIndex, vertexIndex + 1, vertexIndex + 2, triangle.normal);
+                geometry.vertices.push(new three.Vector3(triangle.a[0], triangle.a[1], triangle.a[2]), new three.Vector3(triangle.b[0], triangle.b[1], triangle.b[2]), new three.Vector3(triangle.c[0], triangle.c[1], triangle.c[2]));
+                let face = new three.Face3(vertexIndex, vertexIndex + 1, vertexIndex + 2, triangle.normal);
+                if (triangle.a.length > 3) {
+                    face = new three.Face3(vertexIndex, vertexIndex + 1, vertexIndex + 2, [
+                        new three.Vector3(triangle.a[3], triangle.a[4], triangle.a[5]),
+                        new three.Vector3(triangle.b[3], triangle.b[4], triangle.b[5]),
+                        new three.Vector3(triangle.c[3], triangle.c[4], triangle.c[5])
+                    ]);
+                }
                 geometry.faces.push(face);
+                if (triangle.a.length > 6) {
+                    geometry.faceVertexUvs[0].push([
+                        new three.Vector2(triangle.a[6], triangle.a[7]),
+                        new three.Vector2(triangle.b[6], triangle.b[7]),
+                        new three.Vector2(triangle.c[6], triangle.c[7])
+                    ]);
+                }
             }
             return geometry;
         }
         toBufferGeometry() {
             const geometry = new three.BufferGeometry();
             const triangles = this.getTriangles();
-            const coords = [];
+            const coords = [], coords_n = [], coords_uv = [];
             for (let i = 0; i < triangles.length; i++) {
                 const triangle = triangles[i];
-                coords.push(triangle.a.x, triangle.a.y, triangle.a.z, triangle.b.x, triangle.b.y, triangle.b.z, triangle.c.x, triangle.c.y, triangle.c.z);
+                coords.push(triangle.a[0], triangle.a[1], triangle.a[2], triangle.b[0], triangle.b[1], triangle.b[2], triangle.c[0], triangle.c[1], triangle.c[2]);
+                if (triangle.a.length > 3) {
+                    coords_n.push(triangle.a[3], triangle.a[4], triangle.a[5], triangle.b[3], triangle.b[4], triangle.b[5], triangle.c[3], triangle.c[4], triangle.c[5]);
+                }
+                if (triangle.a.length > 6) {
+                    coords_uv.push(triangle.a[6], triangle.a[7], triangle.b[6], triangle.b[7], triangle.c[6], triangle.c[7]);
+                }
             }
             // @types/three does not have setAttribute, so...
             geometry.setAttribute('position', new three.Float32BufferAttribute(coords, 3, false));
+            if (coords_n.length)
+                geometry.setAttribute('normal', new three.Float32BufferAttribute(coords_n, 3, false));
+            if (coords_uv.length)
+                geometry.setAttribute('uv', new three.Float32BufferAttribute(coords_uv, 2, false));
             return geometry;
         }
     }
@@ -507,25 +557,51 @@
         const triangles = [];
         if (isBufferGeometry(geometry)) {
             const position = geometry.getAttribute('position');
+            const normal = geometry.getAttribute('normal');
+            const uv = geometry.getAttribute('uv');
             const index = geometry.getIndex();
             if (index) {
                 for (let i = 0; i < index.array.length; i += 3) {
                     let j = index.array[i];
-                    const a = new three.Vector3(position.getX(j), position.getY(j), position.getZ(j));
+                    const a = [position.getX(j), position.getY(j), position.getZ(j)];
+                    if (normal)
+                        a.push(normal.getX(j), normal.getY(j), position.getZ(j));
+                    if (uv)
+                        a.push(uv.getX(j), uv.getY(j));
                     j = index.array[i + 1];
-                    const b = new three.Vector3(position.getX(j), position.getY(j), position.getZ(j));
+                    const b = [position.getX(j), position.getY(j), position.getZ(j)];
+                    if (normal)
+                        b.push(normal.getX(j), normal.getY(j), position.getZ(j));
+                    if (uv)
+                        b.push(uv.getX(j), uv.getY(j));
                     j = index.array[i + 2];
-                    const c = new three.Vector3(position.getX(j), position.getY(j), position.getZ(j));
+                    const c = [position.getX(j), position.getY(j), position.getZ(j)];
+                    if (normal)
+                        c.push(normal.getX(j), normal.getY(j), position.getZ(j));
+                    if (uv)
+                        c.push(uv.getX(j), uv.getY(j));
                     triangles.push(new Triangle(a, b, c));
                 }
             }
             else {
                 for (let j = 0; j < position.count; j++) {
-                    const a = new three.Vector3(position.getX(j), position.getY(j), position.getZ(j));
+                    const a = [position.getX(j), position.getY(j), position.getZ(j)];
+                    if (normal)
+                        a.push(normal.getX(j), normal.getY(j), position.getZ(j));
+                    if (uv)
+                        a.push(uv.getX(j), uv.getY(j));
                     j++;
-                    const b = new three.Vector3(position.getX(j), position.getY(j), position.getZ(j));
+                    const b = [position.getX(j), position.getY(j), position.getZ(j)];
+                    if (normal)
+                        b.push(normal.getX(j), normal.getY(j), position.getZ(j));
+                    if (uv)
+                        b.push(uv.getX(j), uv.getY(j));
                     j++;
-                    const c = new three.Vector3(position.getX(j), position.getY(j), position.getZ(j));
+                    const c = [position.getX(j), position.getY(j), position.getZ(j)];
+                    if (normal)
+                        c.push(normal.getX(j), normal.getY(j), position.getZ(j));
+                    if (uv)
+                        c.push(uv.getX(j), uv.getY(j));
                     triangles.push(new Triangle(a, b, c));
                 }
             }
@@ -534,10 +610,10 @@
         const { faces, vertices } = geometry;
         for (let i = 0; i < faces.length; i++) {
             const face = faces[i];
-            const a = vertices[face.a];
-            const b = vertices[face.b];
-            const c = vertices[face.c];
-            const triangle = new Triangle(a, b, c);
+            const va = vertices[face.a];
+            const vb = vertices[face.b];
+            const vc = vertices[face.c];
+            const triangle = new Triangle([va.x, va.y, va.z], [vb.x, vb.y, vb.z], [vc.x, vc.y, vc.z]);
             triangles.push(triangle);
         }
         return triangles;
