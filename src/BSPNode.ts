@@ -83,8 +83,12 @@ export default class BSPNode {
   public isInverted: boolean;
   public boundingBox: Box3;
 
-  static interpolateVectors(a: Vector3, b: Vector3, t: number): Vector3 {
-    return a.clone().lerp(b, t);
+  static interpolateVectors(a: Array<number>, b: Array<number>, t: number): Array<number> {
+    const c = new Array(a.length);
+    for (let i = 0; i < a.length; i++) {
+      c[i] = a[i] + (b[i] - a[i]) * t;
+    }
+    return c;
   }
 
   static splitTriangle(
@@ -94,8 +98,8 @@ export default class BSPNode {
     backTriangles: Triangle[]
   ): void {
     const vertices = [triangle.a, triangle.b, triangle.c];
-    const frontVertices: Vector3[] = [];
-    const backVertices: Vector3[] = [];
+    const frontVertices: Array<number>[] = [];
+    const backVertices: Array<number>[] = [];
 
     for (let i = 0; i < 3; i++) {
       const j = (i + 1) % 3;
@@ -107,9 +111,10 @@ export default class BSPNode {
       if (ti != CLASSIFY_BACK) frontVertices.push(vi);
       if (ti != CLASSIFY_FRONT) backVertices.push(vi);
       if ((ti | tj) === CLASSIFY_SPANNING) {
+        const n = divider.normal;
         const t =
-          (divider.w - divider.normal.dot(vi)) /
-          divider.normal.dot(vj.clone().sub(vi));
+          (divider.w - ( n.x * vi[0] + n.y * vi[1] + n.z * vi[2] )) /
+          (n.x * (vj[0] - vi[0]) + n.y * (vj[1] - vi[1]) + n.z * (vj[2] - vi[2]));
         const v = BSPNode.interpolateVectors(vi, vj, t);
         frontVertices.push(v);
         backVertices.push(v);
@@ -128,7 +133,7 @@ export default class BSPNode {
       );
   };
 
-  static verticesToTriangles(vertices: Vector3[]): Triangle[] {
+  static verticesToTriangles(vertices: Array<number>[]): Triangle[] {
     const triangles = [];
     for (let i = 2; i < vertices.length; i++) {
       const a = vertices[0];
@@ -294,41 +299,41 @@ export default class BSPNode {
       this.boundingBox.min.set(
         Math.min(
           this.boundingBox.min.x,
-          triangle.a.x,
-          triangle.b.x,
-          triangle.c.x
+          triangle.a[0],
+          triangle.b[0],
+          triangle.c[0]
         ),
         Math.min(
           this.boundingBox.min.y,
-          triangle.a.y,
-          triangle.b.y,
-          triangle.c.y
+          triangle.a[1],
+          triangle.b[1],
+          triangle.c[1]
         ),
         Math.min(
           this.boundingBox.min.z,
-          triangle.a.z,
-          triangle.b.z,
-          triangle.c.z
+          triangle.a[2],
+          triangle.b[2],
+          triangle.c[2]
         )
       );
       this.boundingBox.max.set(
         Math.max(
           this.boundingBox.max.x,
-          triangle.a.x,
-          triangle.b.x,
-          triangle.c.x
+          triangle.a[0],
+          triangle.b[0],
+          triangle.c[0]
         ),
         Math.max(
           this.boundingBox.max.y,
-          triangle.a.y,
-          triangle.b.y,
-          triangle.c.y
+          triangle.a[1],
+          triangle.b[1],
+          triangle.c[1]
         ),
         Math.max(
           this.boundingBox.max.z,
-          triangle.a.z,
-          triangle.b.z,
-          triangle.c.z
+          triangle.a[2],
+          triangle.b[2],
+          triangle.c[2]
         )
       );
 
@@ -466,9 +471,7 @@ export default class BSPNode {
     if (this.divider !== undefined) {
       clone.divider = this.divider.clone();
       if (transform) {
-        clone.divider.a.applyMatrix4(transform);
-        clone.divider.b.applyMatrix4(transform);
-        clone.divider.c.applyMatrix4(transform);
+        clone.divider.applyMatrix4(transform);
       }
     }
     if (this.front !== undefined) clone.front = this.front.clone(transform);
@@ -478,9 +481,7 @@ export default class BSPNode {
     for (let i = 0; i < this.triangles.length; i++) {
       const clonedTriangle = this.triangles[i].clone();
       if (transform) {
-        clonedTriangle.a.applyMatrix4(transform);
-        clonedTriangle.b.applyMatrix4(transform);
-        clonedTriangle.c.applyMatrix4(transform);
+        clonedTriangle.applyMatrix4(transform);
         clonedTriangle.computeNormal();
       }
       clonedTriangles.push(clonedTriangle);
@@ -497,7 +498,11 @@ export default class BSPNode {
     for (let i = 0; i < triangles.length; i++) {
       const triangle = triangles[i];
       const vertexIndex = geometry.vertices.length;
-      geometry.vertices.push(triangle.a, triangle.b, triangle.c);
+      geometry.vertices.push(
+        new Vector3(triangle.a[0], triangle.a[1], triangle.a[2]),
+        new Vector3(triangle.b[0], triangle.b[1], triangle.b[2]),
+        new Vector3(triangle.c[0], triangle.c[1], triangle.c[2])
+      );
 
       const face = new Face3(
         vertexIndex,
@@ -518,9 +523,9 @@ export default class BSPNode {
     for (let i = 0; i < triangles.length; i++) {
       const triangle = triangles[i];
       coords.push(
-        triangle.a.x, triangle.a.y, triangle.a.z,
-        triangle.b.x, triangle.b.y, triangle.b.z,
-        triangle.c.x, triangle.c.y, triangle.c.z
+        triangle.a[0], triangle.a[1], triangle.a[2],
+        triangle.b[0], triangle.b[1], triangle.b[2],
+        triangle.c[0], triangle.c[1], triangle.c[2]
       );
     }
     // @types/three does not have setAttribute, so...

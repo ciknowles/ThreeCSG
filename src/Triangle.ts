@@ -1,4 +1,4 @@
-import { Vector3 } from 'three';
+import { Matrix4, Vector3 } from 'three';
 
 const EPSILON = 1e-6;
 
@@ -13,28 +13,35 @@ export type SIDE_CLASSIFICATION =
   | typeof CLASSIFY_BACK
   | typeof CLASSIFY_SPANNING;
 
-
+const tempVector3 = new Vector3();
 
 export default class Triangle {
-  public a: Vector3;
-  public b: Vector3;
-  public c: Vector3;
+  public a: Array<number>;
+  public b: Array<number>;
+  public c: Array<number>;
   public normal: Vector3;
   public w: number;
 
-  constructor(a?: Vector3, b?: Vector3, c?: Vector3) {
+  applyMatrix4(matrix: Matrix4) {
+    tempVector3.set(this.a[0], this.a[1], this.a[2]).applyMatrix4(matrix); this.a[0] = tempVector3.x; this.a[1] = tempVector3.y; this.a[2] = tempVector3.z;
+    tempVector3.set(this.b[0], this.b[1], this.b[2]).applyMatrix4(matrix); this.b[0] = tempVector3.x; this.b[1] = tempVector3.y; this.b[2] = tempVector3.z;
+    tempVector3.set(this.c[0], this.c[1], this.c[2]).applyMatrix4(matrix); this.c[0] = tempVector3.x; this.c[1] = tempVector3.y; this.c[2] = tempVector3.z;
+  }
+
+  constructor(a?: Array<number>, b?: Array<number>, c?: Array<number>) {
     if (a === undefined || b === undefined || c === undefined) {
-      this.a = new Vector3();
-      this.b = new Vector3();
-      this.c = new Vector3();
+      console.warn('Triangle constructor called w/o arguments');
+      this.a = [0, 0, 0];
+      this.b = [0, 0, 0];
+      this.c = [0, 0, 0];
       this.normal = new Vector3();
       this.w = 0;
       return;
     }
 
-    this.a = a.clone();
-    this.b = b.clone();
-    this.c = c.clone();
+    this.a = a.slice();
+    this.b = b.slice();
+    this.c = c.slice();
 
     this.normal = new Vector3();
     this.w = 0;
@@ -48,9 +55,9 @@ export default class Triangle {
 
   public toNumberArray(): number[] {
     const arr: number[] = [
-      this.a.x, this.a.y, this.a.z,
-      this.b.x, this.b.y, this.b.z,
-      this.c.x, this.c.y, this.c.z,
+      this.a[0], this.a[1], this.a[2],
+      this.b[0], this.b[1], this.b[2],
+      this.c[0], this.c[1], this.c[2],
       this.normal.x, this.normal.y, this.normal.z,
       this.w,
     ];
@@ -62,9 +69,9 @@ export default class Triangle {
     if (arr.length !== 13)
       throw new Error(`Array has incorrect size. It's ${arr.length} and should be 13`);
 
-    this.a.set(arr[0], arr[1], arr[2]);
-    this.b.set(arr[3], arr[4], arr[5]);
-    this.c.set(arr[6], arr[7], arr[8]);
+    this.a = [arr[0], arr[1], arr[2]];
+    this.b = [arr[3], arr[4], arr[5]];
+    this.c = [arr[6], arr[7], arr[8]];
     this.normal.set(arr[9], arr[10], arr[11]);
     this.w = arr[12];
   }
@@ -77,18 +84,16 @@ export default class Triangle {
   }
 
   public computeNormal(): void {
-    const tempVector3 = new Vector3();
-    tempVector3.copy(this.c).sub(this.a);
+    tempVector3.set(this.c[0] - this.a[0], this.c[1] - this.a[1], this.c[2] - this.a[2]);
     this.normal
-      .copy(this.b)
-      .sub(this.a)
+      .set(this.b[0] - this.a[0], this.b[1] - this.a[1], this.b[2] - this.a[2])
       .cross(tempVector3)
       .normalize();
-    this.w = this.normal.dot(this.a);
+    this.w = this.normal.x * this.a[0] + this.normal.y * this.a[1] + this.normal.z * this.a[2];
   }
 
-  classifyPoint(point: Vector3): SIDE_CLASSIFICATION {
-    const side = this.normal.dot(point) - this.w;
+  classifyPoint(point: Array<number>): SIDE_CLASSIFICATION {
+    const side = this.normal.x * point[0] + this.normal.y * point[1] + this.normal.z * point[2] - this.w;
 
     if (Math.abs(side) < EPSILON) return CLASSIFY_COPLANAR;
     if (side > 0) return CLASSIFY_FRONT;

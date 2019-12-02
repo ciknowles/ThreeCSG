@@ -14,21 +14,21 @@ export function convertGeometryToTriangles(
     if (index) {
       for (let i = 0; i < index.array.length; i+=3) {
         let j = index.array[i];
-        const a = new Vector3(position.getX(j), position.getY(j), position.getZ(j));
+        const a = [position.getX(j), position.getY(j), position.getZ(j)];
         j = index.array[i + 1];
-        const b = new Vector3(position.getX(j), position.getY(j), position.getZ(j));
+        const b = [position.getX(j), position.getY(j), position.getZ(j)];
         j = index.array[i + 2];
-        const c = new Vector3(position.getX(j), position.getY(j), position.getZ(j));
+        const c = [position.getX(j), position.getY(j), position.getZ(j)];
 
         triangles.push(new Triangle(a, b, c));
       }
     } else {
       for (let j = 0; j < position.count; j++) {
-        const a = new Vector3(position.getX(j), position.getY(j), position.getZ(j));
+        const a = [position.getX(j), position.getY(j), position.getZ(j)];
         j++;
-        const b = new Vector3(position.getX(j), position.getY(j), position.getZ(j));
+        const b = [position.getX(j), position.getY(j), position.getZ(j)];
         j++;
-        const c = new Vector3(position.getX(j), position.getY(j), position.getZ(j));
+        const c = [position.getX(j), position.getY(j), position.getZ(j)];
 
         triangles.push(new Triangle(a, b, c));
       }
@@ -40,11 +40,11 @@ export function convertGeometryToTriangles(
   for (let i = 0; i < faces.length; i++) {
     const face = faces[i];
 
-    const a = vertices[face.a];
-    const b = vertices[face.b];
-    const c = vertices[face.c];
+    const va = vertices[face.a];
+    const vb = vertices[face.b];
+    const vc = vertices[face.c];
 
-    const triangle = new Triangle(a, b, c);
+    const triangle = new Triangle([va.x, va.y, va.z], [vb.x, vb.y, vb.z], [vc.x, vc.y, vc.z]);
 
     triangles.push(triangle);
   }
