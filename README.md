@@ -1,3 +1,10 @@
+`experimental` branch contains the code hacked to support vertex normals:
+
+![check it, check it!](https://i.imgur.com/cFXr2lv.png)
+
+Just look how smooth this baby is, and yet it has edges so sharp that you could cut yourself 🔪😱 Oh, and it also has half-assed UV support (pretty useless without multiple materials).
+
+
 Constructive Solid Geometry library for Three.js
 
 ## Installation
