@@ -114,6 +114,11 @@ export default class Triangle {
     const { a, c } = this;
     this.a = c;
     this.c = a;
+    if (this.a.length > 3) {
+      this.a[3] *= -1; this.a[4] *= -1; this.a[5] *= -1;
+      this.b[3] *= -1; this.b[4] *= -1; this.b[5] *= -1;
+      this.c[3] *= -1; this.c[4] *= -1; this.c[5] *= -1;
+    }
     this.normal.multiplyScalar(-1);
     this.w *= -1;
   }

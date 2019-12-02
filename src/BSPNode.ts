@@ -5,7 +5,7 @@ import Triangle, {
   CLASSIFY_SPANNING,
 } from './Triangle';
 import { isConvexSet } from './utils';
-import { Box3, Face3, Geometry, BufferGeometry, Float32BufferAttribute, Matrix4, Vector3 } from 'three';
+import { Box3, Face3, Geometry, BufferGeometry, Float32BufferAttribute, Matrix4, Vector2, Vector3 } from 'three';
 
 const MINIMUM_RELATION = 0.8; // 0 -> 1
 const MINIMUM_RELATION_SCALE = 10; // should always be >2
@@ -504,13 +504,35 @@ export default class BSPNode {
         new Vector3(triangle.c[0], triangle.c[1], triangle.c[2])
       );
 
-      const face = new Face3(
+      let face: Face3 = new Face3(
         vertexIndex,
         vertexIndex + 1,
         vertexIndex + 2,
         triangle.normal
       );
+
+      if (triangle.a.length > 3) {
+        face = new Face3(
+          vertexIndex,
+          vertexIndex + 1,
+          vertexIndex + 2,
+          [
+            new Vector3(triangle.a[3], triangle.a[4], triangle.a[5]),
+            new Vector3(triangle.b[3], triangle.b[4], triangle.b[5]),
+            new Vector3(triangle.c[3], triangle.c[4], triangle.c[5])
+          ]
+        );
+      }
+
       geometry.faces.push(face);
+
+      if (triangle.a.length > 6) {
+        geometry.faceVertexUvs[0].push([
+          new Vector2(triangle.a[6], triangle.a[7]),
+          new Vector2(triangle.b[6], triangle.b[7]),
+          new Vector2(triangle.c[6], triangle.c[7])
+        ]);
+      }
     }
 
     return geometry;
@@ -519,7 +541,7 @@ export default class BSPNode {
   toBufferGeometry(): BufferGeometry {
     const geometry = new BufferGeometry();
     const triangles = this.getTriangles();
-    const coords = [];
+    const coords = [], coords_n = [], coords_uv = [];
     for (let i = 0; i < triangles.length; i++) {
       const triangle = triangles[i];
       coords.push(
@@ -527,9 +549,25 @@ export default class BSPNode {
         triangle.b[0], triangle.b[1], triangle.b[2],
         triangle.c[0], triangle.c[1], triangle.c[2]
       );
+      if (triangle.a.length > 3) {
+        coords_n.push(
+          triangle.a[3], triangle.a[4], triangle.a[5],
+          triangle.b[3], triangle.b[4], triangle.b[5],
+          triangle.c[3], triangle.c[4], triangle.c[5]
+        );
+      }
+      if (triangle.a.length > 6) {
+        coords_uv.push(
+          triangle.a[6], triangle.a[7],
+          triangle.b[6], triangle.b[7],
+          triangle.c[6], triangle.c[7]
+        );
+      }
     }
     // @types/three does not have setAttribute, so...
     (geometry as any).setAttribute('position', new Float32BufferAttribute(coords, 3, false));
+    if (coords_n.length) (geometry as any).setAttribute('normal', new Float32BufferAttribute(coords_n, 3, false));
+    if (coords_uv.length) (geometry as any).setAttribute('uv', new Float32BufferAttribute(coords_uv, 2, false));
     return geometry;
   }
 }
