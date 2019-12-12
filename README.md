@@ -1,6 +1,6 @@
-`experimental` branch contains the code hacked to support vertex normals:
+`experimental` branch contains the code [hacked to support vertex normals](https://rawcdn.githack.com/makc/ThreeCSG/f764564a64a23d16c510ba8a381af2eec40a4660/docs/examples/subtract.html):
 
-![check it, check it!](https://i.imgur.com/cFXr2lv.png)
+[![check it, check it!](https://i.imgur.com/cFXr2lv.png)](https://rawcdn.githack.com/makc/ThreeCSG/f764564a64a23d16c510ba8a381af2eec40a4660/docs/examples/subtract.html)
 
 Just look how smooth this baby is, and yet it has edges so sharp that you could cut yourself 🔪😱 Oh, and it also has half-assed UV support (pretty useless without multiple materials).
 
